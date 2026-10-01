@@ -1,0 +1,10 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "shiinacasino:block/wood",
+    "wood": "shiinacasino:block/wood",
+    "trim": "shiinacasino:block/trim",
+    "top": "shiinacasino:block/wheel"
+  },
+  "elements": []
+}

@@ -1,0 +1,57 @@
+### Gradle ###
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/**/build/
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/**/out/
+
+.run/
+
+### Eclipse ###
+.apt_generated
+.classpath
+.eclipse/
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/**/bin/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### Minecraft Modding ###
+run/
+run-server-check/
+run-gametest/
+!**/src/**/run/
+**/src/generated/**/.cache/
+repo/
+!**/src/**/repo/
+
+### Local development runs and artifacts ###
+run-render-check/
+logs/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+
+# Local visual reference; not needed to build or redistribute the mod.
+src/main/java/de/shiina/casino/casino-vorlage.png

@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "decorations",
+  "pattern": [
+    "GFG",
+    "WSW",
+    "W W"
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gold_ingot"
+    },
+    "S": {
+      "item": "minecraft:redstone"
+    },
+    "W": {
+      "item": "minecraft:dark_oak_planks"
+    },
+    "F": {
+      "item": "minecraft:green_wool"
+    }
+  },
+  "result": {
+    "id": "shiinacasino:roulette_table",
+    "count": 1
+  }
+}

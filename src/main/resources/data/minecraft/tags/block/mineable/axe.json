@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "shiinacasino:blackjack_table",
+    "shiinacasino:poker_table",
+    "shiinacasino:roulette_table",
+    "shiinacasino:fortune_wheel",
+    "shiinacasino:chip_exchange",
+    "shiinacasino:blackjack_table_part",
+    "shiinacasino:roulette_table_part",
+    "shiinacasino:fortune_wheel_part"
+  ]
+}

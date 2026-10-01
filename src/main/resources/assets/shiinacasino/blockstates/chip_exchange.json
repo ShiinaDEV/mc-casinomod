@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "shiinacasino:block/chip_exchange",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "shiinacasino:block/chip_exchange",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "shiinacasino:block/chip_exchange",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "shiinacasino:block/chip_exchange",
+      "y": 270
+    }
+  }
+}
