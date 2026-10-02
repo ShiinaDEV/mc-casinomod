@@ -88,13 +88,13 @@ public final class CasinoScreen extends AbstractContainerScreen<CasinoMenu> {
             graphics.blit(FELT_TEXTURE, column, row, 0F, 0F, Math.min(32, WIDTH - 6 - column), Math.min(32, HEIGHT - 6 - row), 32, 32);
         text(graphics, title.getString(), 9, 8, 0xff111711);
         text(graphics, tr("casino.chips", menu.chips, menu.balance), 10, 23, WHITE);
-        button(graphics, WIDTH-29, 5, 21, 13, "Ã—", "close", 0, true);
+        button(graphics, WIDTH-29, 5, 21, 13, "X", "close", 0, true);
         if (menu.kind.equals("exchange")) exchange(graphics);
         else if (menu.view == null) center(graphics, tr("casino.loading"), WIDTH/2, HEIGHT/2, WHITE);
         else {
             Game.View view = menu.view;
             String status = tr("casino.phase." + view.phase());
-            if (remaining() > 0) status += " Â· " + ((remaining() + 999) / 1000) + " s";
+            if (remaining() > 0) status += ": " + ((remaining() + 999) / 1000) + " s";
             text(graphics, status, 10, 36, GOLD);
             switch (menu.kind) {
                 case "blackjack" -> blackjack(graphics, view);
@@ -155,7 +155,7 @@ public final class CasinoScreen extends AbstractContainerScreen<CasinoMenu> {
     private void stake(GuiGraphics graphics) {
         text(graphics, tr(menu.kind.equals("poker") ? "casino.amount.poker" : "casino.amount.bet"), 10, 261, WHITE);
         button(graphics, 148, 256, 100, 20, amount + (editing ? "_" : ""), "amount", 0, true);
-        button(graphics, 255, 256, 28, 20, "âˆ’", "minus", 0, true);
+        button(graphics, 255, 256, 28, 20, "-", "minus", 0, true);
         button(graphics, 288, 256, 28, 20, "+", "plus", 0, true);
         if (menu.view != null) text(graphics, tr("casino.round", menu.view.round()), 328, 261, GOLD);
     }
@@ -164,11 +164,11 @@ public final class CasinoScreen extends AbstractContainerScreen<CasinoMenu> {
         graphics.fill(x, y, x + width, y + 55, seat.active() ? GOLD : 0xff698978);
         graphics.fill(x + 1, y + 1, x + width - 1, y + 54, seat.active() ? 0xff226749 : 0xff123d30);
         String name = seat.name() + (seat.seat() == menu.view.button() ? " [D]" : "");
-        text(graphics, shortText((seat.active() ? "â–¶ " : "") + name, width - 5), x + 3, y + 3, seat.active() ? GOLD : WHITE);
+        text(graphics, shortText((seat.active() ? "▶ " : "") + name, width - 5), x + 3, y + 3, seat.active() ? GOLD : WHITE);
         String info = menu.kind.equals("poker") ? seat.stack() + " / " + seat.bet() : tr("casino.bet", seat.bet());
-        if (menu.kind.equals("blackjack") && !seat.cards().isEmpty()) info += " Â· " + blackjackTotal(seat.cards());
-        if (seat.folded()) info += " Â· " + tr(menu.kind.equals("poker") ? "casino.folded" : "casino.bust");
-        if (seat.leaving()) info += " Â· " + tr("casino.leaving");
+        if (menu.kind.equals("blackjack") && !seat.cards().isEmpty()) info += " · " + blackjackTotal(seat.cards());
+        if (seat.folded()) info += " · " + tr(menu.kind.equals("poker") ? "casino.folded" : "casino.bust");
+        if (seat.leaving()) info += " · " + tr("casino.leaving");
         text(graphics, shortText(info, width - 5), x + 3, y + 14, WHITE);
         if (showCards) cards(graphics, seat.cards(), x + 4, y + 25, 18, 25, width - 8, "seat" + seat.seat());
         if (!seat.result().isEmpty()) text(graphics, tr("casino.result." + seat.result()), x + width - 36, y + 42, GOLD);
@@ -220,7 +220,7 @@ public final class CasinoScreen extends AbstractContainerScreen<CasinoMenu> {
     }
 
     private void blackjack(GuiGraphics graphics, Game.View view) {
-        center(graphics, tr("casino.dealer") + (view.dealer().isEmpty() ? "" : " Â· " + (view.dealer().contains(-1) ? "?" : blackjackTotal(view.dealer()))), 210, 48, WHITE);
+        center(graphics, tr("casino.dealer") + (view.dealer().isEmpty() ? "" : " · " + (view.dealer().contains(-1) ? "?" : blackjackTotal(view.dealer()))), 210, 48, WHITE);
         cards(graphics, view.dealer(), 178, 61, 24, 34, 130, "dealer");
         for (int index = 0; index < 6; index++) {
             int x = 9 + index % 3 * 136, y = 106 + index / 3 * 60;
@@ -317,7 +317,7 @@ public final class CasinoScreen extends AbstractContainerScreen<CasinoMenu> {
         for (int segment = 0; segment < size; segment++) {
             double direction = angle + (segment + .5) * sector;
             int x = centerX + (int) (Math.cos(direction) * radius * .78), y = centerY + (int) (Math.sin(direction) * radius * .78);
-            String label = roulette ? Integer.toString(Roulette.ORDER[segment]) : view.segments().get(segment) + "Ã—";
+            String label = roulette ? Integer.toString(Roulette.ORDER[segment]) : view.segments().get(segment) + "×";
             graphics.pose().pushPose(); graphics.pose().translate(x, y, 0);
             float labelScale = roulette ? .65F : 1F; graphics.pose().scale(labelScale, labelScale, 1);
             center(graphics, label, 0, -4, WHITE); graphics.pose().popPose();
@@ -341,7 +341,7 @@ public final class CasinoScreen extends AbstractContainerScreen<CasinoMenu> {
         center(graphics, tr("casino.exchange.rate", menu.rate), 210, 72, GOLD);
         center(graphics, tr("casino.exchange.inventory"), 210, 100, WHITE);
         graphics.renderItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND), 167, 110);
-        text(graphics, "â†’", 201, 114, GOLD);
+        text(graphics, "→", 201, 114, GOLD);
         graphics.renderItem(new net.minecraft.world.item.ItemStack(de.shiina.casino.CasinoContent.CHIP.get()), 233, 110);
         button(graphics, 74, 135, 272, 25, tr("casino.exchange.buy", menu.rate), "buy", 0, menu.rate > 0);
         button(graphics, 74, 170, 272, 25, tr("casino.exchange.sell", menu.rate), "sell", 0, menu.chips >= menu.rate && menu.rate > 0);

@@ -1,5 +1,5 @@
 """Generate block-native station parts with flush trim and continuous playing-surface UVs.
-Poker and exchange resources are intentionally not regenerated.
+Legacy single-block models and exchange resources are retained.
 """
 import json
 from pathlib import Path
@@ -53,7 +53,24 @@ def table_cell(kind,x,z):
     if abs(x)==1 and z in (min_z,1):
         px=1 if x<0 else 12;pz=1 if z==min_z else 12
         elements.append(element([px,0,pz],[px+3,11,pz+3],directions=("north","east","south","west","down")))
+    if kind=="poker":
+        # Markings sit on the felt with no overlapping coplanar faces.
+        def line(ax,az,bx,bz):
+            ax=max(ax,16*(x+1)); bx=min(bx,16*(x+2))
+            az=max(az,16*z); bz=min(bz,16*(z+1))
+            if ax<bx and az<bz:
+                elements.append(element([ax-16*(x+1),15.11,az-16*z],[bx-16*(x+1),15.12,bz-16*z],"mark",("up",)))
+        def outline(ax,az,bx,bz):
+            line(ax,az,bx,az+.12);line(ax,bz-.12,bx,bz)
+            line(ax,az,ax+.12,bz);line(bx-.12,az,bx,bz)
+        for i in range(5): outline(10+i*6,12,14+i*6,20)
+        for i in range(3):
+            outline(5+i*16,3,11+i*16,9)
+            outline(5+i*16,23,11+i*16,29)
     result=model(elements,kind)
+    if kind=="poker":
+        result["textures"]["top"]="shiinacasino:block/felt"
+        result["textures"]["mark"]="shiinacasino:block/trim"
     if kind=="roulette": result["textures"]["top"]="shiinacasino:block/felt"
     return result
 
@@ -75,7 +92,7 @@ chair.append(element([3,10,4.01],[13,10.1,13],"top",("up",)))
 chair_model=model(chair);chair_model["textures"]["top"]="shiinacasino:block/felt"
 write(ASSETS/"models/block/casino_chair.json",chair_model)
 write(ASSETS/"models/block/station_empty.json",model([]))
-for kind,block_name in [("blackjack","blackjack_table"),("roulette","roulette_table"),("wheel","fortune_wheel")]:
+for kind,block_name in [("blackjack","blackjack_table"),("poker","poker_table"),("roulette","roulette_table"),("wheel","fortune_wheel")]:
     variants={};part_variants={};parts=layouts(kind)
     for expanded in (False,True):
         for facing,rotation in [("north",0),("east",90),("south",180),("west",270)]:
@@ -101,15 +118,15 @@ item=model([element([3,0,3],[13,4,13]),element([6,4,6],[10,16,10]),element([1,10
 write(ASSETS/"models/block/fortune_wheel_item.json",item)
 write(ASSETS/"models/item/fortune_wheel.json",{"parent":"shiinacasino:block/fortune_wheel_item"})
 p=ROOT/"data/minecraft/tags/block/mineable/axe.json";tag=json.loads(p.read_text())
-for name in ("blackjack_table_part","roulette_table_part","fortune_wheel_part"):
+for name in ("blackjack_table_part","poker_table_part","roulette_table_part","fortune_wheel_part"):
     if "shiinacasino:"+name not in tag["values"]: tag["values"].append("shiinacasino:"+name)
 write(p,tag)
 for language,values in {
-    "de_de":{"casino.error.seat":"Dieser Sitz ist belegt oder f?r die laufende Hand reserviert.","casino.error.sit":"Setze dich zuerst auf einen Stuhl an diesem Tisch.","casino.wheel.world":"Das Rad dreht sich drau?en in der Welt.","casino.wheel.payouts":"6? 0 | 3? 1 | 2? 2 | 1? 4", "casino.seat.hint":"Stuhl: setzen ? Shift: aufstehen"},
-    "en_us":{"casino.error.seat":"This seat is occupied or reserved for the current hand.","casino.error.sit":"Sit on a chair at this table first.","casino.wheel.world":"Watch the wheel spin in the world.","casino.wheel.payouts":"6? 0 | 3? 1 | 2? 2 | 1? 4", "casino.seat.hint":"Chair: sit ? Shift: stand up"}
+    "de_de":{"casino.error.seat":"Dieser Sitz ist belegt oder für die laufende Hand reserviert.","casino.error.sit":"Setze dich zuerst auf einen Stuhl an diesem Tisch.","casino.wheel.world":"Das Rad dreht sich draußen in der Welt.","casino.wheel.payouts":"6× 0 | 3× 1 | 2× 2 | 1× 4", "casino.seat.hint":"Stuhl: setzen · Shift: aufstehen"},
+    "en_us":{"casino.error.seat":"This seat is occupied or reserved for the current hand.","casino.error.sit":"Sit on a chair at this table first.","casino.wheel.world":"Watch the wheel spin in the world.","casino.wheel.payouts":"6× 0 | 3× 1 | 2× 2 | 1× 4", "casino.seat.hint":"Chair: sit · Shift: stand up"}
 }.items():
     p=ASSETS/("lang/"+language+".json");data=json.loads(p.read_text(encoding="utf-8"));data.update(values)
-    for part in ("blackjack_table_part","roulette_table_part","fortune_wheel_part"):
+    for part in ("blackjack_table_part","poker_table_part","roulette_table_part","fortune_wheel_part"):
         data["block.shiinacasino."+part]="Stationsteil" if language=="de_de" else "Station part"
     write(p,data)
 print("Generated station models, blockstates and part loot; retained existing textures.")

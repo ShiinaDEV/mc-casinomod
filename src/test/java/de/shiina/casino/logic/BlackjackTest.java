@@ -29,6 +29,7 @@ class BlackjackTest {
         bet(game, player, 20); game.timeout(20000);
         game.guarded(player, game.round(), game.revision(), "stand", 0, 0, 21000);
         assertEquals(2, game.view(player, 21000).dealer().size());
+        game.timeout(22000); game.timeout(23500);
         assertEquals(40, bank.ledger.balance(player));
     }
     @Test void naturalPaysThreeToTwoAndBeatsOrdinary21() {
@@ -44,7 +45,9 @@ class BlackjackTest {
         TestBank bank = new TestBank(); UUID player = bank.player(100);
         BlackjackGame game = game(bank, 9,14,10,13);
         bet(game, player, 20); game.timeout(20000);
-        assertEquals("result", game.view(player, 20000).phase());
+        assertEquals("dealer_reveal", game.view(player, 20000).phase());
+        game.timeout(21000); game.timeout(22500);
+        assertEquals("result", game.view(player, 22500).phase());
         assertEquals(0, bank.ledger.balance(player));
         assertThrows(IllegalArgumentException.class, () -> game.guarded(player, game.round(), game.revision(), "double", 20, 0, 20001));
         assertEquals(80, bank.inventory.get(player));
@@ -63,6 +66,7 @@ class BlackjackTest {
         long revision = game.revision();
         game.guarded(player, game.round(), revision, "double", 0, 0, 21000);
         assertEquals(40, bank.debits.get(player)); assertEquals(60, bank.inventory.get(player));
+        game.timeout(22000); game.timeout(23200); game.timeout(24700);
         assertEquals(80, bank.ledger.balance(player));
         assertEquals(3, game.view(player, 21000).seats().getFirst().cards().size());
         assertThrows(IllegalArgumentException.class, () -> game.guarded(player, game.round(), revision, "double", 0, 0, 21001));
@@ -92,7 +96,9 @@ class BlackjackTest {
         assertEquals(20, bank.ledger.balance(player)); assertEquals(0, game.deadline());
         assertTrue(bank.ledger.pending().isEmpty());
         bet(game, player, 20); game.timeout(20000); game.timeout(50000);
-        assertEquals("result", game.view(player, 50000).phase());
+        assertEquals("dealer_reveal", game.view(player, 50000).phase());
+        game.timeout(51000); game.timeout(52500);
+        assertEquals("result", game.view(player, 52500).phase());
     }
     @Test void restartOrUnloadRefundsDoubledUnfinishedHand() {
         TestBank bank = new TestBank(); UUID first = bank.player(100), second = bank.player(100);
@@ -107,7 +113,31 @@ class BlackjackTest {
         TestBank bank = new TestBank(); UUID player = bank.player(100);
         BlackjackGame game = game(bank, 8,10,8,10); bet(game, player, 20); game.timeout(20000);
         game.depart(player, 21000); game.close();
-        assertEquals(0, bank.ledger.balance(player));
+        assertEquals(20, bank.ledger.balance(player));
+    }
+    @Test void dealerStepsAreSharedPrivateTimedAndPayExactlyOnceDespiteDepartureAndReopen() {
+        TestBank bank = new TestBank(); UUID player = bank.player(100), observer = UUID.randomUUID();
+        BlackjackGame game = game(bank, 10,2,9,3,4,8);
+        bet(game, player, 20); game.timeout(20000);
+        game.guarded(player, game.round(), game.revision(), "stand", 0, 0, 21000);
+        assertEquals("dealer_reveal", game.view(player,21000).phase());
+        assertEquals(List.of(0,-1),game.view(observer,21000).dealer());
+        game.timeout(21999); assertTrue(game.view(player,21999).dealer().contains(-1));
+        game.depart(player,21999);
+        assertThrows(IllegalArgumentException.class, () -> game.action(player,"hit",0,0,21999));
+        game.timeout(22000);
+        assertEquals(List.of(0,1),game.view(observer,22000).dealer());
+        assertEquals(game.view(player,22000).dealer(),game.view(observer,22000).dealer());
+        long deadline=game.deadline(); game.view(player,22500); assertEquals(deadline,game.deadline());
+        game.timeout(23199); assertEquals(2,game.view(observer,23199).dealer().size());
+        game.timeout(23200); assertEquals(3,game.view(observer,23200).dealer().size());
+        game.timeout(24400); assertEquals(4,game.view(observer,24400).dealer().size());
+        assertEquals("dealer_wait",game.view(observer,24400).phase());
+        assertEquals(0,bank.ledger.balance(player));
+        game.timeout(25899); assertEquals(0,bank.ledger.balance(player));
+        game.timeout(25900); assertEquals(40,bank.ledger.balance(player));
+        game.timeout(25900); game.depart(player,26000); game.close(); game.close();
+        assertEquals(40,bank.ledger.balance(player)); assertTrue(bank.ledger.pending().isEmpty());
     }
     @Test void shoeContainsSixCopiesAndNeverRedrawsBeyondCapacity() {
         Cards.Deck deck = new Cards.Deck(6, new SecureRandom());

@@ -12,13 +12,13 @@ public final class StationLayout {
             return new Part(rx, y, rz, seat);
         }
     }
-    public static boolean enlarged(String kind) { return kind.equals("blackjack") || kind.equals("roulette") || kind.equals("wheel"); }
+    public static boolean enlarged(String kind) { return kind.equals("blackjack") || kind.equals("poker") || kind.equals("roulette") || kind.equals("wheel"); }
     public static List<Part> parts(String kind) {
         List<Part> parts = new ArrayList<>();
         if (kind.equals("wheel")) {
             for (int y = 0; y < 3; y++) for (int x = -1; x <= 1; x++)
                 if (x != 0 || y != 0) parts.add(new Part(x, y, 0, -1));
-        } else if (kind.equals("blackjack") || kind.equals("roulette")) {
+        } else if (kind.equals("blackjack") || kind.equals("poker") || kind.equals("roulette")) {
             int minZ = kind.equals("roulette") ? -1 : 0;
             for (int z = minZ; z <= 1; z++) for (int x = -1; x <= 1; x++)
                 if (x != 0 || z != 0) parts.add(new Part(x, 0, z, -1));

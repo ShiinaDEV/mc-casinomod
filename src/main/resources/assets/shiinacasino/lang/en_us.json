@@ -93,8 +93,8 @@
   "casino.error.seat": "This seat is occupied or reserved for the current hand.",
   "casino.error.sit": "Sit on a chair at this table first.",
   "casino.wheel.world": "Watch the wheel spin in the world.",
-  "casino.wheel.payouts": "6? 0 | 3? 1 | 2? 2 | 1? 4",
-  "casino.seat.hint": "Chair: sit ? Shift: stand up",
+  "casino.wheel.payouts": "6× 0 | 3× 1 | 2× 2 | 1× 4",
+  "casino.seat.hint": "Chair: sit · Shift: stand up",
   "block.shiinacasino.blackjack_table_part": "Station part",
   "block.shiinacasino.roulette_table_part": "Station part",
   "block.shiinacasino.fortune_wheel_part": "Station part",
@@ -107,5 +107,9 @@
   "casino.placement.permission": "Building is not permitted at %s.",
   "casino.placement.bounds": "Outside the world border or build height at %s.",
   "casino.placement.unloaded": "The area at %s is not loaded yet.",
-  "casino.placement.changed": "The area changed during placement. Nothing consumed; please try again."
+  "casino.placement.changed": "The area changed during placement. Nothing consumed; please try again.",
+  "block.shiinacasino.poker_table_part": "Station part",
+  "casino.phase.dealer_reveal": "Dealer reveals",
+  "casino.phase.dealer_draw": "Dealer draws",
+  "casino.phase.dealer_wait": "Dealer finishes the round"
 }

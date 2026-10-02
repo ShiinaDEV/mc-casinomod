@@ -24,6 +24,7 @@ public final class BlackjackGame extends Game {
     private UUID transaction = UUID.randomUUID();
     private UUID turn;
     private boolean paid;
+    private boolean dealerRevealed;
 
     public BlackjackGame(Bank bank, Rules rules, SecureRandom random) {
         this(bank, rules, new Cards.Deck(6, random));
@@ -95,7 +96,7 @@ public final class BlackjackGame extends Game {
             dealer.add(shoe.draw());
         }
         phase = "playing"; startedAt = now;
-        if (Cards.natural(dealer)) { settle(now); return; }
+        if (Cards.natural(dealer)) { beginDealer(now); return; }
         hands.values().forEach(hand -> { if (Cards.natural(hand.cards)) hand.stood = true; });
         advance(now);
     }
@@ -103,11 +104,20 @@ public final class BlackjackGame extends Game {
     private void advance(long now) {
         turn = hands.values().stream().filter(hand -> !hand.stood).map(hand -> hand.player).findFirst().orElse(null);
         if (turn != null) { deadline = now + rules.turnSeconds() * 1000L; return; }
-        while (Cards.blackjack(dealer) < 17) dealer.add(shoe.draw());
-        settle(now);
+        beginDealer(now);
+    }
+
+    private void beginDealer(long now) {
+        turn = null; phase = "dealer_reveal"; startedAt = now; deadline = now + 1000;
+    }
+
+    private void dealerNext(long now) {
+        phase = Cards.blackjack(dealer) < 17 ? "dealer_draw" : "dealer_wait";
+        startedAt = now; deadline = now + (phase.equals("dealer_draw") ? 1200 : 1500);
     }
 
     private void settle(long now) {
+        if (paid) return;
         Map<UUID, Long> awards = new LinkedHashMap<>();
         hands.forEach((player, hand) -> {
             long award = payout(hand.bet, hand.cards, dealer);
@@ -124,8 +134,11 @@ public final class BlackjackGame extends Game {
         switch (phase) {
             case "betting" -> deal(now);
             case "playing" -> { hands.get(turn).stood = true; advance(now); }
+            case "dealer_reveal" -> { dealerRevealed = true; dealerNext(now); }
+            case "dealer_draw" -> { dealer.add(shoe.draw()); dealerNext(now); }
+            case "dealer_wait" -> settle(now);
             case "result" -> {
-                hands.clear(); dealer.clear(); paid = false; phase = "betting";
+                hands.clear(); dealer.clear(); paid = false; dealerRevealed = false; phase = "betting";
                 round++; transaction = UUID.randomUUID(); deadline = 0;
             }
             default -> throw new IllegalStateException(phase);
@@ -158,7 +171,7 @@ public final class BlackjackGame extends Game {
         List<Integer> house = new ArrayList<>();
         if (!dealer.isEmpty()) {
             house.add(dealer.getFirst().code());
-            if (phase.equals("result")) house = Cards.codes(dealer); else house.add(-1);
+            if (dealerRevealed) house = Cards.codes(dealer); else house.add(-1);
         }
         List<String> actions = new ArrayList<>();
         if (rules.blackjack() && phase.equals("betting") && !contains(viewer) && hands.size() < 6) actions.add("bet");

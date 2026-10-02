@@ -144,6 +144,7 @@ class PokerTest {
         action(game,first,"join",100,0); action(game,second,"join",20,0); game.timeout(20000);
         action(game,first,"allin",0,21000); action(game,second,"call",0,21001);
         Game.View result = game.view(first,0); assertEquals("result",result.phase()); assertEquals(5,result.board().size());
+        assertTrue(game.view(UUID.randomUUID(),0).seats().stream().allMatch(seat -> seat.cards().equals(List.of(-1,-1))));
         long stacks = result.seats().stream().mapToLong(Game.Seat::stack).sum(); assertEquals(120,stacks);
         assertTrue(result.seats().stream().filter(seat -> seat.id().equals(first.toString())).findFirst().orElseThrow().stack() >= 80);
     }

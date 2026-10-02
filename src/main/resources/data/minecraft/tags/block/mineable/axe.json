@@ -8,6 +8,7 @@
     "shiinacasino:chip_exchange",
     "shiinacasino:blackjack_table_part",
     "shiinacasino:roulette_table_part",
-    "shiinacasino:fortune_wheel_part"
+    "shiinacasino:fortune_wheel_part",
+    "shiinacasino:poker_table_part"
   ]
 }

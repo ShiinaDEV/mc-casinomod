@@ -144,7 +144,7 @@ public final class StationPlacementGameTests {
     public static void dismantlingPartsDropsExactlyOneItemSurvivalAndNoneCreativeAndCanReplace(GameTestHelper h) {
         BlockPos anchor=fixture(h);var level=h.getLevel();
         var bounds=new net.minecraft.world.phys.AABB(anchor).inflate(5);
-        for(String kind:new String[]{"blackjack","roulette","wheel"}) for(boolean creative:new boolean[]{false,true}) {
+        for(String kind:new String[]{"blackjack","poker","roulette","wheel"}) for(boolean creative:new boolean[]{false,true}) {
             var p=player(h,anchor,Direction.WEST,creative);var stack=equip(p,kind);
             h.assertTrue(((StationItem)stack.getItem()).place(new BlockPlaceContext(p,InteractionHand.MAIN_HAND,stack,hit(anchor))).consumesAction(),"Initial placement");
             BlockPos target=StationStructure.partPos(anchor,StationLayout.parts(kind).getLast(),Direction.WEST);

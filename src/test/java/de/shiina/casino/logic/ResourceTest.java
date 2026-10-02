@@ -19,7 +19,7 @@ class ResourceTest {
                 String location = texture.getValue().getAsString().replace("shiinacasino:","");
                 assertTrue(Files.exists(ROOT.resolve("assets/shiinacasino/textures/" + location + ".png")),location);
             }
-            assertEquals(block.equals("poker_table") || block.equals("chip_exchange") ? 4 : 8,read(ROOT.resolve("assets/shiinacasino/blockstates/" + block + ".json")).getAsJsonObject("variants").size());
+            assertEquals(block.equals("chip_exchange") ? 4 : 8,read(ROOT.resolve("assets/shiinacasino/blockstates/" + block + ".json")).getAsJsonObject("variants").size());
             assertEquals("shiinacasino:" + block,read(ROOT.resolve("data/shiinacasino/recipe/" + block + ".json")).getAsJsonObject("result").get("id").getAsString());
             assertEquals("shiinacasino:" + block,read(ROOT.resolve("data/shiinacasino/loot_table/blocks/" + block + ".json"))
                     .getAsJsonArray("pools").get(0).getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject().get("name").getAsString());
@@ -44,7 +44,7 @@ class ResourceTest {
                 assertTrue(Files.exists(assets.resolve("models/"+model+".json")),entry.getKey()+" -> "+model);
             }
         }
-        for(String part:new String[]{"blackjack_table_part","roulette_table_part","fortune_wheel_part"}) {
+        for(String part:new String[]{"blackjack_table_part","poker_table_part","roulette_table_part","fortune_wheel_part"}) {
             assertEquals(56,read(assets.resolve("blockstates/"+part+".json")).getAsJsonObject("variants").size());
             assertTrue(read(ROOT.resolve("data/shiinacasino/loot_table/blocks/"+part+".json")).getAsJsonArray("pools").isEmpty());
             assertFalse(Files.exists(ROOT.resolve("data/shiinacasino/recipe/"+part+".json")));
@@ -75,7 +75,7 @@ class ResourceTest {
                 }
             }
         }
-        assertEquals(24,count);
+        assertEquals(28,count);
     }
     private boolean overlap(JsonObject a,String side,JsonObject b,String otherSide) {
         int axis=axis(side);if(axis!=axis(otherSide)) return false;

@@ -11,7 +11,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public final class StationShapes {
     private static final Map<String,VoxelShape> CACHE=new HashMap<>();
     static {
-        for (String kind : new String[]{"blackjack","roulette","wheel"}) {
+        for (String kind : new String[]{"blackjack","poker","roulette","wheel"}) {
             var parts=StationLayout.parts(kind);
             for (int index=-1;index<parts.size();index++) {
                 var part=index<0 ? new StationLayout.Part(0,0,0,-1) : parts.get(index);

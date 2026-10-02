@@ -166,7 +166,7 @@ public final class CasinoServer {
                 table.game.nextRules(CasinoConfig.snapshot());
                 table.limits = table.game.rules();
                 if (player.level().getBlockState(menu.pos).getValue(CasinoBlock.EXPANDED)
-                        && (menu.kind.equals("blackjack") && !packet.action().equals("leave")
+                        && ((menu.kind.equals("blackjack") || menu.kind.equals("poker")) && !packet.action().equals("leave")
                             || menu.kind.equals("roulette") && packet.action().startsWith("roulette_"))
                         && !CasinoSeats.get(server).at(player,menu.pos)) throw new IllegalArgumentException("casino.error.sit");
                 table.game.guarded(player.getUUID(), packet.round(), packet.revision(), packet.action(), packet.amount(), packet.option(), now());
@@ -314,10 +314,10 @@ public final class CasinoServer {
             var block=player.level().getBlockState(pos).getBlock();
             Rules rules=CasinoConfig.snapshot();
             if(!(block instanceof CasinoBlock casino) || tables.size()>=rules.maxTables()
-                    || casino.kind.equals("blackjack") && !rules.blackjack() || casino.kind.equals("roulette") && !rules.roulette()) return false;
+                    || casino.kind.equals("blackjack") && !rules.blackjack() || casino.kind.equals("poker") && !rules.poker() || casino.kind.equals("roulette") && !rules.roulette()) return false;
             return true;
         }
-        if(!table.game.kind().equals("blackjack")) return true;
+        if(!table.game.kind().equals("blackjack") && !table.game.kind().equals("poker")) return true;
         for(Game.Seat hand:table.game.view(player.getUUID(),now()).seats()) {
             if(hand.id().equals(player.getUUID().toString()) && hand.seat()!=seat) return false;
             if(hand.seat()==seat && !hand.id().equals(player.getUUID().toString())) return false;

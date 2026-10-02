@@ -62,8 +62,10 @@ public final class PokerGame extends Game {
         if (action.equals("join")) {
             require(rules.poker() && phase.equals("lobby") && !contains(id) && occupied().size() < 6);
             require(amount >= rules.buyInMin() && amount <= rules.buyInMax());
+            int seat = bank.seat(id);
+            if (seat >= 0) require(seat < seats.length && seats[seat] == null);
+            else { seat = 0; while (seats[seat] != null) seat++; }
             debit(id, amount);
-            int seat = 0; while (seats[seat] != null) seat++;
             seats[seat] = new Player(id, seat, amount); journal();
             if (occupied().size() >= 2 && deadline == 0) { startedAt = now; deadline = now + rules.bettingSeconds() * 1000L; }
             return;
@@ -240,7 +242,7 @@ public final class PokerGame extends Game {
 
     @Override public View view(UUID viewer, long now) {
         List<Seat> visible = occupied().stream().map(player -> {
-            boolean reveal = player.id.equals(viewer) || (showdown && !player.folded && phase.equals("result"));
+            boolean reveal = player.id.equals(viewer);
             List<Integer> cards = player.cards.isEmpty() ? List.of() : reveal ? Cards.codes(player.cards) : List.of(-1, -1);
             return new Seat(player.id.toString(), bank.name(player.id), player.seat, player.stack, player.street,
                     cards, player.folded, player.seat == turn, player.leaving, player.result);

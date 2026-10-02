@@ -1,19 +1,35 @@
 {
   "variants": {
-    "facing=north": {
+    "expanded=false,facing=north": {
       "model": "shiinacasino:block/poker_table",
       "y": 0
     },
-    "facing=east": {
+    "expanded=false,facing=east": {
       "model": "shiinacasino:block/poker_table",
       "y": 90
     },
-    "facing=south": {
+    "expanded=false,facing=south": {
       "model": "shiinacasino:block/poker_table",
       "y": 180
     },
-    "facing=west": {
+    "expanded=false,facing=west": {
       "model": "shiinacasino:block/poker_table",
+      "y": 270
+    },
+    "expanded=true,facing=north": {
+      "model": "shiinacasino:block/poker_table_center",
+      "y": 0
+    },
+    "expanded=true,facing=east": {
+      "model": "shiinacasino:block/poker_table_center",
+      "y": 90
+    },
+    "expanded=true,facing=south": {
+      "model": "shiinacasino:block/poker_table_center",
+      "y": 180
+    },
+    "expanded=true,facing=west": {
+      "model": "shiinacasino:block/poker_table_center",
       "y": 270
     }
   }

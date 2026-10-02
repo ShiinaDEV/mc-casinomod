@@ -25,11 +25,11 @@ class StationsTest {
         assertThrows(IllegalArgumentException.class,()->new SeatRegistry.Key("overworld",12,6));
     }
     @Test void layoutsHaveExactFootprintsSixChairsAndUnambiguousRotatedOwnership() {
-        for(String kind:List.of("blackjack","roulette","wheel")) {
+        for(String kind:List.of("blackjack","poker","roulette","wheel")) {
             var layout=StationLayout.parts(kind);
-            assertEquals(kind.equals("blackjack")?11:kind.equals("roulette")?14:8,layout.size());
+            assertEquals(!kind.equals("roulette") && !kind.equals("wheel")?11:kind.equals("roulette")?14:8,layout.size());
             assertEquals(kind.equals("wheel")?0:6,layout.stream().filter(p->p.seat()>=0).count());
-            assertEquals(kind.equals("blackjack")?5:8,layout.stream().filter(p->p.seat()<0).count());
+            assertEquals(!kind.equals("roulette") && !kind.equals("wheel")?5:8,layout.stream().filter(p->p.seat()<0).count());
             for(int rotation=0;rotation<4;rotation++) {
                 var positions=new HashSet<String>();positions.add("0:0:0");
                 for(var part:layout) {
@@ -51,6 +51,16 @@ class StationsTest {
         assertEquals(100,bank.inventory.get(c));assertEquals(2,game.players().size());
         game.depart(a,1000);game.depart(a,1001);assertEquals(20,bank.ledger.balance(a));
         game.guarded(c,game.round(),game.revision(),"bet",20,0,1002);assertEquals(2,game.players().size());
+    }
+    @Test void pokerBuyInsUsePhysicalSeatsAndReservedSeatCannotDebit() {
+        TestBank bank=new TestBank();UUID a=bank.player(1000),b=bank.player(1000),c=bank.player(1000);
+        bank.seats.put(a,5);bank.seats.put(b,1);bank.seats.put(c,5);
+        PokerGame game=new PokerGame(bank,Rules.defaults(),new java.security.SecureRandom());
+        game.guarded(a,game.round(),game.revision(),"join",200,0,0);
+        game.guarded(b,game.round(),game.revision(),"join",200,0,0);
+        assertEquals(5,game.view(a,0).seats().stream().filter(s->s.id().equals(a.toString())).findFirst().orElseThrow().seat());
+        assertThrows(IllegalArgumentException.class,()->game.guarded(c,game.round(),game.revision(),"join",200,0,0));
+        assertEquals(1000,bank.inventory.get(c));
     }
     @Test void rouletteSeatDepartureKeepsWagersAndTheSharedRound() {
         TestBank bank=new TestBank();UUID a=bank.player(100),b=bank.player(100);

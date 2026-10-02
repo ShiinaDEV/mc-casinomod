@@ -90,11 +90,11 @@
   "casino.error.disabled": "Dieses Spiel ist deaktiviert.",
   "casino.error.tables": "Serverlimit für geöffnete Tische erreicht.",
   "casino.error.spectators": "Zuschauerlimit erreicht.",
-  "casino.error.seat": "Dieser Sitz ist belegt oder f?r die laufende Hand reserviert.",
+  "casino.error.seat": "Dieser Sitz ist belegt oder für die laufende Hand reserviert.",
   "casino.error.sit": "Setze dich zuerst auf einen Stuhl an diesem Tisch.",
-  "casino.wheel.world": "Das Rad dreht sich drau?en in der Welt.",
-  "casino.wheel.payouts": "6? 0 | 3? 1 | 2? 2 | 1? 4",
-  "casino.seat.hint": "Stuhl: setzen ? Shift: aufstehen",
+  "casino.wheel.world": "Das Rad dreht sich draußen in der Welt.",
+  "casino.wheel.payouts": "6× 0 | 3× 1 | 2× 2 | 1× 4",
+  "casino.seat.hint": "Stuhl: setzen · Shift: aufstehen",
   "block.shiinacasino.blackjack_table_part": "Stationsteil",
   "block.shiinacasino.roulette_table_part": "Stationsteil",
   "block.shiinacasino.fortune_wheel_part": "Stationsteil",
@@ -107,5 +107,9 @@
   "casino.placement.permission": "Keine Bauberechtigung bei %s.",
   "casino.placement.bounds": "Außerhalb der Weltgrenze oder Bauhöhe bei %s.",
   "casino.placement.unloaded": "Der Bereich bei %s ist noch nicht geladen.",
-  "casino.placement.changed": "Die Fläche hat sich beim Aufbau geändert. Nichts verbraucht; bitte erneut versuchen."
+  "casino.placement.changed": "Die Fläche hat sich beim Aufbau geändert. Nichts verbraucht; bitte erneut versuchen.",
+  "block.shiinacasino.poker_table_part": "Stationsteil",
+  "casino.phase.dealer_reveal": "Dealer deckt auf",
+  "casino.phase.dealer_draw": "Dealer zieht",
+  "casino.phase.dealer_wait": "Dealer beendet die Runde"
 }
