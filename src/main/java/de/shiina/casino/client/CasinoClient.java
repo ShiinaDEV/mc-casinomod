@@ -9,7 +9,6 @@ import de.shiina.casino.menu.CasinoMenu;
 import de.shiina.casino.network.CasinoNetwork;
 import de.shiina.casino.network.SnapshotDelta;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -20,7 +19,8 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 public final class CasinoClient {
     private static final Gson JSON = new Gson();
 
-    public CasinoClient(IEventBus bus) {
+    public CasinoClient(IEventBus bus, net.neoforged.fml.ModContainer container) {
+        container.registerConfig(net.neoforged.fml.config.ModConfig.Type.CLIENT, CasinoClientConfig.SPEC);
         bus.addListener(CasinoClient::screens);
         bus.addListener(CasinoClient::renderers);
         de.shiina.casino.block.WheelBlockEntity.clientAnimation=WorldWheelSounds::update;
@@ -32,17 +32,26 @@ public final class CasinoClient {
                     || menu.containerId != state.menu() || !menu.table.equals(state.table())) return;
             Game.View previous = menu.view;
             var update = JsonParser.parseString(state.json()).getAsJsonObject();
-            if(!state.full() && menu.lastState==null) return;
-            var candidate=state.full() ? update : SnapshotDelta.apply(menu.lastState, update);
+            var candidate=SnapshotDelta.receive(menu.lastState, update, state.full(), menu.updateSequence);
+            if (candidate == null) return;
+            long updateSequence = candidate.get("updateSequence").getAsLong();
+            if (updateSequence <= menu.updateSequence) return;
             var view=menu.kind.equals("exchange") ? null : JSON.fromJson(candidate, Game.View.class);
             if(previous!=null && view!=null && (view.round()<previous.round() || view.round()==previous.round() && view.revision()<previous.revision())) return;
-            menu.lastState=candidate; menu.view=view;
+            long previousAck = menu.acknowledgedSequence;
+            boolean initial = menu.lastState == null;
+            String oldHistory = initial ? "" : menu.lastState.getAsJsonArray("history").toString();
+            menu.lastState=candidate; menu.view=view; menu.updateSequence=updateSequence;
+            menu.acknowledgedSequence=candidate.get("ack").getAsLong();
+            menu.exchangeRevision=candidate.get("exchangeRevision").getAsLong();
             menu.receivedAt = System.nanoTime() / 1000000L;
+            if (initial || menu.acknowledgedSequence != previousAck || !menu.error.equals(state.error())) menu.feedbackAt=menu.receivedAt;
             menu.serverOffset = state.serverMillis() - menu.receivedAt;
             menu.balance = state.balance(); menu.chips = state.chips(); menu.rate = state.rate(); menu.error = state.error();
-            if (menu.view != null && (previous == null || !previous.phase().equals(menu.view.phase())))
-                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(menu.view.phase().equals("result")
-                        ? SoundEvents.EXPERIENCE_ORB_PICKUP : SoundEvents.UI_BUTTON_CLICK.value(), 1));
+            if (!initial && menu.acknowledgedSequence > previousAck && menu.error.startsWith("casino.status."))
+                CasinoEffects.play(SoundEvents.UI_BUTTON_CLICK.value(), 1F, .35F);
+            if (!initial && !oldHistory.equals(candidate.getAsJsonArray("history").toString()))
+                CasinoEffects.play(SoundEvents.EXPERIENCE_ORB_PICKUP, 1F, .4F);
             if (minecraft.screen instanceof CasinoScreen screen) screen.received(previous);
         };
     }

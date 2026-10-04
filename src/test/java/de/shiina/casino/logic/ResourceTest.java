@@ -10,7 +10,28 @@ import org.junit.jupiter.api.Test;
 
 class ResourceTest {
     private static final Path ROOT = Path.of("src/main/resources");
-    private JsonObject read(Path path) throws Exception { return JsonParser.parseString(Files.readString(path)).getAsJsonObject(); }
+    private JsonObject read(Path path) throws Exception { return JsonParser.parseString(Files.readString(path,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject(); }
+
+    @Test void sourceAndBuiltTranslationsAreUtf8AndContainCompleteComfortMessages() throws Exception {
+        for(String locale:new String[]{"de_de","en_us"}) {
+            Path relative=Path.of("assets/shiinacasino/lang/"+locale+".json");
+            JsonObject source=read(ROOT.resolve(relative));
+            assertEquals(source,read(Path.of("build/resources/main").resolve(relative)));
+            for(var entry:source.entrySet()) {
+                String value=entry.getValue().getAsString();
+                assertFalse(value.contains("\ufffd") || value.contains("Ã") || value.contains("Â") || value.contains("â€"),entry.getKey());
+            }
+            assertEquals("1-18",source.get("casino.roulette.low").getAsString());
+            assertEquals("19-36",source.get("casino.roulette.high").getAsString());
+            for(String game:new String[]{"blackjack","poker","roulette","wheel","exchange"}) assertTrue(source.get("casino.help."+game).getAsString().length()>150);
+            for(String error:new String[]{"chips","bet","betting_closed","turn","seat","phase","unavailable","inventory","stale"}) assertTrue(source.has("casino.error."+error));
+        }
+        assertEquals("Glücksrad",read(ROOT.resolve("assets/shiinacasino/lang/de_de.json")).get("block.shiinacasino.fortune_wheel").getAsString());
+        try(var paths=Files.walk(Path.of("src"))) {
+            for(Path path:paths.filter(Files::isRegularFile).filter(p->p.toString().endsWith(".java") || p.toString().endsWith(".json") || p.toString().endsWith(".toml")).toList())
+                assertFalse(Files.readString(path,java.nio.charset.StandardCharsets.UTF_8).contains("\ufffd"),path.toString());
+        }
+    }
 
     @Test void allModelsResolveTexturesAndRecipesAndLootMatchBlocks() throws Exception {
         for (String block : new String[]{"blackjack_table","poker_table","roulette_table","fortune_wheel","chip_exchange"}) {

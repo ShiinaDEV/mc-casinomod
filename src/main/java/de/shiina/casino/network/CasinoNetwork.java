@@ -34,7 +34,7 @@ public final class CasinoNetwork {
 
     private CasinoNetwork() {}
     public static void register(RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("2");
+        var registrar = event.registrar("3");
         registrar.playToServer(Action.TYPE, Action.CODEC, (action, context) -> {
             if (context.player() instanceof ServerPlayer player) CasinoServer.get(player.server).action(player, action);
         });

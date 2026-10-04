@@ -60,19 +60,22 @@ public final class PokerGame extends Game {
 
     @Override public void action(UUID id, String action, long amount, int option, long now) {
         if (action.equals("join")) {
-            require(rules.poker() && phase.equals("lobby") && !contains(id) && occupied().size() < 6);
-            require(amount >= rules.buyInMin() && amount <= rules.buyInMax());
+            require(rules.poker(), "casino.error.disabled");
+            require(phase.equals("lobby"), "casino.error.phase");
+            require(!contains(id) && occupied().size() < 6, "casino.error.seat");
+            require(amount >= rules.buyInMin() && amount <= rules.buyInMax(), "casino.error.bet");
             int seat = bank.seat(id);
-            if (seat >= 0) require(seat < seats.length && seats[seat] == null);
+            if (seat >= 0) require(seat < seats.length && seats[seat] == null, "casino.error.seat");
             else { seat = 0; while (seats[seat] != null) seat++; }
             debit(id, amount);
             seats[seat] = new Player(id, seat, amount); journal();
             if (occupied().size() >= 2 && deadline == 0) { startedAt = now; deadline = now + rules.bettingSeconds() * 1000L; }
             return;
         }
-        Player player = player(id); require(player != null);
+        Player player = player(id); require(player != null, "casino.error.seat_required");
         if (action.equals("leave")) { depart(id, now); return; }
-        require(playing() && turn == player.seat && actionable(player));
+        require(playing(), "casino.error.phase");
+        require(turn == player.seat && actionable(player), "casino.error.turn");
         act(player, action, amount);
         progress(player.seat, now);
         journal();
@@ -178,6 +181,7 @@ public final class PokerGame extends Game {
     private void runout() { while (board.size() < 5) advanceStreet(); }
 
     private void finish(boolean reveal, long now) {
+        if (!playing()) return;
         showdown = reveal; lastPot = occupied().stream().mapToLong(player -> player.contribution).sum();
         List<PokerHands.Contender> contenders = new ArrayList<>();
         for (Player player : occupied()) {
@@ -190,13 +194,18 @@ public final class PokerGame extends Game {
         }
         long before = totalChips();
         Map<UUID, Long> awards = PokerHands.distribute(contenders, button);
+        List<PersonalRounds.Result> results = new ArrayList<>();
         for (Player player : occupied()) {
             long award = awards.get(player.id);
+            results.add(new PersonalRounds.Result(kind(), transaction, round, player.contribution, award));
+            long net = award - player.contribution;
             player.stack = Money.add(player.stack, award); player.contribution = 0; player.street = 0;
-            player.result = award > 0 ? "win" : "loss";
+            player.result = net > 0 ? "win" : net == 0 ? "push" : "loss";
         }
         if (totalChips() != before) throw new IllegalStateException("chip conservation");
         phase = "result"; turn = -1; startedAt = now; deadline = now + 7000; journal();
+        List<Player> completed = occupied();
+        for (int index = 0; index < completed.size(); index++) bank.completed(completed.get(index).id, results.get(index));
         for (Player player : List.copyOf(occupied())) if (player.leaving || player.stack == 0) cashOut(player);
     }
 

@@ -15,6 +15,27 @@ public final class InventoryOps {
     public record Delivery<Stack>(List<Stack> slots, long delivered) {}
     private InventoryOps() {}
 
+    /** Maximum whole exchanges, including slots freed by consuming the input. O(slots). */
+    public static <Stack> long maximumExchange(List<Stack> source, Adapter<Stack> adapter,
+                                               Object input, long cost, Object output, long reward) {
+        if (cost <= 0 || reward <= 0 || adapter.is(adapter.create(input, 1), output)) throw new IllegalArgumentException("casino.error.amount");
+        Money.checked(cost); Money.checked(reward);
+        long available = source.stream().filter(stack -> adapter.is(stack, input)).mapToLong(adapter::count).sum() / cost;
+        int maximum = adapter.maximum(adapter.create(output, 1));
+        long capacity = 0;
+        for (Stack stack : source) {
+            if (adapter.count(stack) == 0) capacity += maximum;
+            else if (adapter.mergeable(stack, output)) capacity += Math.max(0, adapter.maximum(stack) - adapter.count(stack));
+        }
+        long best = Math.min(available, capacity / reward), consumed = 0;
+        for (Stack stack : source) if (adapter.is(stack, input) && adapter.count(stack) > 0) {
+            consumed += adapter.count(stack); capacity += maximum;
+            long candidate = Math.min(available, capacity / reward);
+            if (candidate >= (consumed + cost - 1) / cost) best = Math.max(best, candidate);
+        }
+        return best;
+    }
+
     public static <Stack> List<Stack> remove(List<Stack> source, Adapter<Stack> adapter, Object item, long amount) {
         Money.checked(amount);
         long available = source.stream().filter(stack -> adapter.is(stack, item)).mapToLong(adapter::count).sum();

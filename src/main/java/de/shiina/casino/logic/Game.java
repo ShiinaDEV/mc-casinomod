@@ -13,6 +13,10 @@ public abstract class Game {
         boolean available(UUID player);
         String name(UUID player);
         default int seat(UUID player) { return -1; }
+        default void completed(UUID player, PersonalRounds.Result result) {}
+        default void rememberBet(UUID player, String game, long amount) {}
+        default void rememberWagers(UUID player, List<PersonalRounds.Wager> wagers) {}
+        default List<PersonalRounds.Wager> lastWagers(UUID player) { return List.of(); }
     }
 
     public record Seat(String id, String name, int seat, long stack, long bet, List<Integer> cards,
@@ -52,6 +56,9 @@ public abstract class Game {
     public void nextRules(Rules next) { if (!funded() && phase.equals("betting")) rules = next; }
 
     public void guarded(UUID player, long expectedRound, long expectedRevision, String action, long amount, int option, long now) {
+        if (deadline > 0 && now >= deadline) timeout(now);
+        if (round == expectedRound && (action.equals("bet") || action.equals("repeat") || action.startsWith("roulette_"))
+                && !phase.equals("betting")) throw new IllegalArgumentException("casino.error.betting_closed");
         if (round != expectedRound || revision != expectedRevision) throw new IllegalArgumentException("casino.error.stale");
         Money.checked(amount);
         action(player, action, amount, option, now);
@@ -60,6 +67,7 @@ public abstract class Game {
     }
 
     protected void require(boolean condition) { if (!condition) throw new IllegalArgumentException("casino.error.action"); }
+    protected void require(boolean condition, String error) { if (!condition) throw new IllegalArgumentException(error); }
     protected void debit(UUID player, long amount) {
         if (!bank.available(player)) throw new IllegalArgumentException("casino.error.busy");
         if (!bank.debit(player, amount)) throw new IllegalArgumentException("casino.error.chips");

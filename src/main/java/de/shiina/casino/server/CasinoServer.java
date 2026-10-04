@@ -52,6 +52,7 @@ public final class CasinoServer {
     private final Map<Position, Table> positions = new HashMap<>();
     private final Map<ChunkKey, Set<UUID>> chunks = new HashMap<>();
     private final Map<UUID, UUID> participating = new HashMap<>();
+    private final PersonalRounds personal = new PersonalRounds();
     private final TreeMap<Long, Set<UUID>> scheduler = new TreeMap<>();
     private boolean stopping;
 
@@ -103,6 +104,10 @@ public final class CasinoServer {
             if (data.ledger.settle(transaction) && obligation != null) obligation.recovery().keySet().forEach(CasinoServer.this::automaticClaim);
         }
         @Override public int seat(UUID player) { return CasinoSeats.get(server).index(player,position.dimension,position.pos); }
+        @Override public void completed(UUID player, PersonalRounds.Result result) { personal.complete(player, result); }
+        @Override public void rememberBet(UUID player, String game, long amount) { personal.remember(player, game, amount); }
+        @Override public void rememberWagers(UUID player, List<PersonalRounds.Wager> wagers) { personal.rememberWagers(player, wagers); }
+        @Override public List<PersonalRounds.Wager> lastWagers(UUID player) { return personal.lastWagers(player); }
         @Override public String name(UUID player) { return names.getOrDefault(player, "?"); }
         boolean near(ServerPlayer player) {
             return player.serverLevel() == level && player.isAlive()
@@ -116,6 +121,7 @@ public final class CasinoServer {
         if (player.level().getBlockState(pos).getValue(CasinoBlock.EXPANDED)
                 && !de.shiina.casino.block.StationStructure.complete(player.level(),pos,player.level().getBlockState(pos))) return;
         try {
+            personal.open(player.getUUID());
             Rules rules = CasinoConfig.snapshot();
             Position position = new Position(player.level().dimension().location().toString(), pos.immutable());
             Table table = positions.get(position);
@@ -153,49 +159,87 @@ public final class CasinoServer {
 
     public void action(ServerPlayer player, CasinoNetwork.Action packet) {
         if (!(player.containerMenu instanceof CasinoMenu menu) || menu.containerId != packet.menu()
-                || !menu.table.equals(packet.table()) || !menu.stillValid(player)) return;
-        if (!menu.actionGate.accept(packet.sequence(), server.getTickCount())) return;
+                || !menu.table.equals(packet.table())) return;
         Table table = tables.get(menu.table);
+        if (!menu.stillValid(player)) { send(player, table, "casino.error.unavailable"); return; }
+        if (!menu.actionGate.accept(packet.sequence(), server.getTickCount())) {
+            if (packet.sequence() > menu.acknowledgedSequence && menu.lastRejectionTick != server.getTickCount()) {
+                menu.lastRejectionTick = server.getTickCount(); menu.acknowledgedSequence = packet.sequence();
+                send(player, table, "casino.error.fast");
+            }
+            return;
+        }
+        menu.acknowledgedSequence = packet.sequence();
         try {
             Money.checked(packet.amount());
-            if (menu.kind.equals("exchange")) exchange(player, packet);
+            if (menu.kind.equals("exchange")) exchange(player, menu, packet);
             else {
-                if (table == null || !table.near(player)) throw new IllegalArgumentException("casino.error.distance");
-                if (!checkpoint(table)) { player.displayClientMessage(Component.translatable("casino.error.save"), true); schedule(table); return; }
+                if (table == null) throw new IllegalArgumentException("casino.error.unavailable");
+                if (!table.near(player)) throw new IllegalArgumentException("casino.error.distance");
+                if (!checkpoint(table)) { send(player, table, "casino.error.save"); schedule(table); return; }
                 if (table.game.deadline() > 0 && now() >= table.game.deadline()) table.game.timeout(now());
                 table.game.nextRules(CasinoConfig.snapshot());
                 table.limits = table.game.rules();
                 if (player.level().getBlockState(menu.pos).getValue(CasinoBlock.EXPANDED)
                         && ((menu.kind.equals("blackjack") || menu.kind.equals("poker")) && !packet.action().equals("leave")
-                            || menu.kind.equals("roulette") && packet.action().startsWith("roulette_"))
+                            || menu.kind.equals("roulette") && (packet.action().startsWith("roulette_") || packet.action().equals("repeat")))
                         && !CasinoSeats.get(server).at(player,menu.pos)) throw new IllegalArgumentException("casino.error.sit");
                 table.game.guarded(player.getUUID(), packet.round(), packet.revision(), packet.action(), packet.amount(), packet.option(), now());
                 refresh(table); schedule(table);
-                if (!checkpoint(table)) { player.displayClientMessage(Component.translatable("casino.error.save"), true); schedule(table); return; }
-                broadcast(table);
+                if (!checkpoint(table)) { send(player, table, "casino.error.save"); schedule(table); return; }
             }
-            send(player, table, "");
+            String confirmation = switch (packet.action()) {
+                case "bet" -> "casino.status.bet";
+                case "repeat" -> "casino.status.repeat";
+                case "spin" -> "casino.status.spin";
+                case "cancel" -> "casino.status.cancel";
+                case "leave" -> "casino.status.leave";
+                case "buy", "sell" -> "casino.status.exchange";
+                case "claim" -> "casino.status.claim";
+                default -> packet.action().startsWith("roulette_") ? "casino.status.bet" : "casino.status.action";
+            };
+            send(player, table, confirmation);
+            if (table != null) broadcast(table);
         } catch (IllegalArgumentException | ArithmeticException exception) {
+            String error = exception.getMessage();
+            error = error != null && error.startsWith("casino.") ? error : "casino.error.amount";
             if (table != null) {
                 refresh(table);
-                if (!checkpoint(table)) { schedule(table); player.displayClientMessage(Component.translatable("casino.error.save"), true); return; }
+                if (!checkpoint(table)) { schedule(table); send(player, table, "casino.error.save"); return; }
+                send(player, table, error);
                 broadcast(table); schedule(table);
+            } else {
+                send(player, null, error);
             }
-            String error = exception.getMessage();
-            send(player, table, error != null && error.startsWith("casino.") ? error : "casino.error.amount");
         }
     }
 
-    private void exchange(ServerPlayer player, CasinoNetwork.Action packet) {
+    private void exchange(ServerPlayer player, CasinoMenu menu, CasinoNetwork.Action packet) {
+        if (packet.round() != 0 || packet.revision() != menu.exchangeRevision) throw new IllegalArgumentException("casino.error.stale");
         int rate = CasinoConfig.snapshot().exchangeRate();
+        if (packet.option() != rate) throw new IllegalArgumentException("casino.error.stale");
+        long quantity = packet.amount();
+        if (!packet.action().equals("claim") && (quantity < 1 || quantity > 2304)) throw new IllegalArgumentException("casino.error.amount");
         boolean result;
         switch (packet.action()) {
-            case "buy" -> result = ChipInventory.exchange(player, Items.DIAMOND, 1, CasinoContent.CHIP.get(), rate);
-            case "sell" -> result = ChipInventory.exchange(player, CasinoContent.CHIP.get(), rate, Items.DIAMOND, 1);
-            case "claim" -> { claim(player); return; }
+            case "buy" -> {
+                if (ChipInventory.count(player, Items.DIAMOND) < quantity) throw new IllegalArgumentException("casino.error.diamonds");
+                result = ChipInventory.exchange(player, Items.DIAMOND, quantity, CasinoContent.CHIP.get(), Money.multiply(rate, quantity));
+            }
+            case "sell" -> {
+                long cost = Money.multiply(rate, quantity);
+                if (ChipInventory.count(player, CasinoContent.CHIP.get()) < cost) throw new IllegalArgumentException("casino.error.chips");
+                result = ChipInventory.exchange(player, CasinoContent.CHIP.get(), cost, Items.DIAMOND, quantity);
+            }
+            case "claim" -> {
+                if (data.ledger.balance(player.getUUID()) == 0) throw new IllegalArgumentException("casino.error.balance");
+                if (claim(player) == 0) throw new IllegalArgumentException("casino.error.inventory");
+                menu.exchangeRevision++; return;
+            }
             default -> throw new IllegalArgumentException("casino.error.action");
         }
-        if (!result) throw new IllegalArgumentException("casino.error.exchange");
+        if (!result) throw new IllegalArgumentException("casino.error.inventory");
+        menu.exchangeRevision++;
     }
 
     private long claim(ServerPlayer player) { return data.ledger.claim(player.getUUID(), 2304, amount -> ChipInventory.give(player, amount)); }
@@ -208,24 +252,53 @@ public final class CasinoServer {
     }
 
     private void send(ServerPlayer player, Table table, String error) {
-        send(player, table, error, !error.isEmpty());
+        send(player, table, error, error != null && error.startsWith("casino.error."));
     }
     private void send(ServerPlayer player, Table table, String error, boolean full) {
         if (!(player.containerMenu instanceof CasinoMenu menu)) return;
         if (table != null && !menu.table.equals(table.id)) return;
         JsonObject state = table == null ? new JsonObject() : JSON.toJsonTree(table.game.view(player.getUUID(), now())).getAsJsonObject();
-        if (table != null && player.level().getBlockState(menu.pos).getValue(CasinoBlock.EXPANDED)
-                && (menu.kind.equals("blackjack") || menu.kind.equals("roulette")) && !CasinoSeats.get(server).at(player,menu.pos)) {
+        if (table != null && player.level().getBlockState(menu.pos).getBlock() instanceof CasinoBlock
+                && player.level().getBlockState(menu.pos).getValue(CasinoBlock.EXPANDED)
+                && (menu.kind.equals("blackjack") || menu.kind.equals("poker") || menu.kind.equals("roulette")) && !CasinoSeats.get(server).at(player,menu.pos)) {
             var actions=state.getAsJsonArray("actions");
             for(int i=actions.size()-1;i>=0;i--) if(!actions.get(i).getAsString().equals("leave") && !actions.get(i).getAsString().equals("cancel")) actions.remove(i);
         }
-        long chips = player.getInventory().items.stream().filter(stack -> stack.is(CasinoContent.CHIP.get())).mapToLong(stack -> stack.getCount()).sum();
+        String feedback = error == null ? menu.error : error;
+        state.add("history", JSON.toJsonTree(personal.history(player.getUUID())));
+        state.addProperty("lastBet", personal.lastBet(player.getUUID(), menu.kind));
+        state.add("lastWagers", JSON.toJsonTree(personal.lastWagers(player.getUUID())));
+        state.addProperty("ack", menu.acknowledgedSequence);
+        state.addProperty("exchangeRevision", menu.exchangeRevision);
+        state.addProperty("smallBlind", table == null ? 0 : table.game.rules().smallBlind());
+        state.addProperty("bigBlind", table == null ? 0 : table.game.rules().bigBlind());
+        state.addProperty("available", table == null || table.available(player.getUUID()));
+        state.addProperty("near", table == null || table.near(player));
+        if (table != null && (!table.available(player.getUUID()) || !table.near(player))) {
+            var actions=state.getAsJsonArray("actions");
+            for(int i=actions.size()-1;i>=0;i--) if(List.of("bet","join","spin","roulette","repeat").contains(actions.get(i).getAsString())) actions.remove(i);
+        }
+        state.addProperty("updateSequence", menu.updateSequence);
+        state.addProperty("seated", table == null || !player.level().getBlockState(menu.pos).hasProperty(CasinoBlock.EXPANDED)
+                || !player.level().getBlockState(menu.pos).getValue(CasinoBlock.EXPANDED) || CasinoSeats.get(server).at(player, menu.pos));
+        if (menu.kind.equals("exchange")) {
+            state.addProperty("diamonds", ChipInventory.count(player, Items.DIAMOND));
+            state.addProperty("maxBuy", ChipInventory.maximumExchange(player, Items.DIAMOND, 1, CasinoContent.CHIP.get(), CasinoConfig.RATE.get()));
+            state.addProperty("maxSell", ChipInventory.maximumExchange(player, CasinoContent.CHIP.get(), CasinoConfig.RATE.get(), Items.DIAMOND, 1));
+            state.addProperty("claimCapacity", ChipInventory.capacity(player, CasinoContent.CHIP.get()));
+        }
+        long chips = ChipInventory.count(player, CasinoContent.CHIP.get());
         long balance = data.ledger.balance(player.getUUID()); int rate = CasinoConfig.RATE.get();
         full |= menu.lastState == null;
         JsonObject update = full ? state : SnapshotDelta.between(menu.lastState, state);
-        if (!full && update.isEmpty() && menu.balance == balance && menu.chips == chips && menu.rate == rate && menu.error.equals(error)) return;
-        PacketDistributor.sendToPlayer(player, new CasinoNetwork.State(menu.containerId, menu.table, full, now(), JSON.toJson(update), balance, chips, rate, error));
-        menu.lastState = state; menu.balance = balance; menu.chips = chips; menu.rate = rate; menu.error = error;
+        if (!full && update.isEmpty() && menu.balance == balance && menu.chips == chips && menu.rate == rate && menu.error.equals(feedback)) return;
+        state.addProperty("updateSequence", ++menu.updateSequence);
+        update = full ? state : SnapshotDelta.between(menu.lastState, state);
+        PacketDistributor.sendToPlayer(player, new CasinoNetwork.State(menu.containerId, menu.table, full, now(), JSON.toJson(update), balance, chips, rate, feedback));
+        menu.lastState = state; menu.balance = balance; menu.chips = chips; menu.rate = rate; menu.error = feedback;
+    }
+    public void syncMenu(ServerPlayer player) {
+        if (player.containerMenu instanceof CasinoMenu menu && menu.stillValid(player)) send(player, tables.get(menu.table), null);
     }
     private void syncVisual(Table table) {
         if (!(table.level.getBlockEntity(table.position.pos) instanceof de.shiina.casino.block.WheelBlockEntity wheel)) return;
@@ -242,7 +315,7 @@ public final class CasinoServer {
         for (UUID viewer : List.copyOf(table.viewers)) {
             ServerPlayer player = server.getPlayerList().getPlayer(viewer);
             if (player == null || !(player.containerMenu instanceof CasinoMenu menu) || !menu.table.equals(table.id)) table.viewers.remove(viewer);
-            else send(player, table, "");
+            else send(player, table, null);
         }
     }
 
@@ -356,6 +429,7 @@ public final class CasinoServer {
             CasinoSeats.get(event.getServer()).releaseAll();
             for (Table table : new ArrayList<>(manager.tables.values())) table.game.close();
             manager.tables.clear(); manager.scheduler.clear(); manager.participating.clear(); manager.positions.clear(); manager.chunks.clear();
+            manager.personal.clear();
             manager.data.setDirty();
         }
     }
@@ -363,10 +437,14 @@ public final class CasinoServer {
     @SubscribeEvent public static void logout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         CasinoServer manager = get(player.server);
+        manager.personal.forget(player.getUUID());
         UUID tableId = manager.participating.get(player.getUUID());
         Table table = manager.tables.get(tableId);
         if (table != null) { table.game.depart(player.getUUID(), now()); manager.refresh(table); manager.broadcast(table); manager.schedule(table); }
         if (player.containerMenu instanceof CasinoMenu menu) manager.unwatch(player, menu.table);
+    }
+    @SubscribeEvent public static void login(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) get(player.server).personal.open(player.getUUID());
     }
     private static boolean protectedPart(ServerLevel level,BlockPos pos) {
         BlockPos anchor=de.shiina.casino.block.StationStructure.anchor(level,pos);

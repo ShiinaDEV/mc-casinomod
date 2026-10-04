@@ -24,7 +24,7 @@ public final class WorldWheelSounds {
             if(now>=wheel.startedTick+wheel.duration) { stop(wheel); return true; }
             if(now-entry.getValue()>=6 && minecraft.player!=null && minecraft.player.distanceToSqr(wheel.getBlockPos().getCenter())<=256) {
                 var pos=wheel.getBlockPos();
-                level.playLocalSound(pos.getX()+.5,pos.getY()+1.5,pos.getZ()+.5,SoundEvents.WOODEN_BUTTON_CLICK_ON,SoundSource.BLOCKS,.22F,1.2F,false);
+                if (CasinoClientConfig.SOUNDS.get()) level.playLocalSound(pos.getX()+.5,pos.getY()+1.5,pos.getZ()+.5,SoundEvents.WOODEN_BUTTON_CLICK_ON,SoundSource.BLOCKS,.22F*CasinoClientConfig.VOLUME.get().floatValue(),1.2F,false);
                 entry.setValue(now);
             }
             return false;
@@ -32,8 +32,8 @@ public final class WorldWheelSounds {
     }
     private static void stop(WheelBlockEntity wheel) {
         var mc=Minecraft.getInstance();var pos=wheel.getBlockPos();
-        if(mc.level==wheel.getLevel() && mc.player!=null && mc.player.distanceToSqr(pos.getCenter())<=256)
-            mc.level.playLocalSound(pos.getX()+.5,pos.getY()+1.5,pos.getZ()+.5,SoundEvents.EXPERIENCE_ORB_PICKUP,SoundSource.BLOCKS,.4F,.9F,false);
+        if(CasinoClientConfig.SOUNDS.get() && mc.level==wheel.getLevel() && mc.player!=null && mc.player.distanceToSqr(pos.getCenter())<=256)
+            mc.level.playLocalSound(pos.getX()+.5,pos.getY()+1.5,pos.getZ()+.5,SoundEvents.EXPERIENCE_ORB_PICKUP,SoundSource.BLOCKS,.4F*CasinoClientConfig.VOLUME.get().floatValue(),.9F,false);
     }
     public static void logout(ClientPlayerNetworkEvent.LoggingOut event) { ACTIVE.clear(); }
     private WorldWheelSounds() {}

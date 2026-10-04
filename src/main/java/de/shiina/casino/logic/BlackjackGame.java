@@ -56,19 +56,23 @@ public final class BlackjackGame extends Game {
 
     @Override public void action(UUID player, String action, long amount, int option, long now) {
         if (action.equals("bet")) {
-            require(rules.blackjack() && phase.equals("betting") && !contains(player) && hands.size() < 6);
+            require(rules.blackjack(), "casino.error.disabled");
+            require(phase.equals("betting"), "casino.error.betting_closed");
+            require(!contains(player) && hands.size() < 6, "casino.error.seat");
             rules.bet(amount, true);
             int seat = bank.seat(player);
-            if (seat >= 0) require(seat < 6 && !hasSeat(seat));
+            if (seat >= 0) require(seat < 6 && !hasSeat(seat), "casino.error.seat");
             else { seat = 0; while (hasSeat(seat)) seat++; }
             debit(player, amount);
             hands.put(player, new Hand(player, seat, amount));
             journal();
+            bank.rememberBet(player, kind(), amount);
             if (deadline == 0) { startedAt = now; deadline = now + rules.bettingSeconds() * 1000L; }
             return;
         }
         if (action.equals("leave") && phase.equals("betting")) { depart(player, now); return; }
-        require(phase.equals("playing") && player.equals(turn));
+        require(phase.equals("playing"), "casino.error.phase");
+        require(player.equals(turn), "casino.error.turn");
         Hand hand = hands.get(player);
         require(hand != null && !hand.stood);
         switch (action) {
@@ -76,8 +80,9 @@ public final class BlackjackGame extends Game {
             case "stand" -> hand.stood = true;
             case "double" -> {
                 require(hand.cards.size() == 2);
+                long doubled = Money.multiply(hand.bet, 2);
                 debit(player, hand.bet);
-                hand.bet = Money.multiply(hand.bet, 2);
+                hand.bet = doubled;
                 journal();
                 hand.cards.add(shoe.draw()); hand.stood = true;
             }
@@ -127,6 +132,8 @@ public final class BlackjackGame extends Game {
         bank.hold(transaction, kind(), round, awards);
         bank.settle(transaction);
         paid = true; turn = null; phase = "result"; startedAt = now; deadline = now + 6000;
+        hands.forEach((player, hand) -> bank.completed(player,
+                new PersonalRounds.Result(kind(), transaction, round, hand.bet, awards.get(player))));
     }
 
     @Override public void timeout(long now) {

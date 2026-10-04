@@ -27,15 +27,29 @@ public final class CasinoMenu extends AbstractContainerMenu {
     public int rate;
     public String error = "";
     public long sequence;
+    public long acknowledgedSequence;
+    public long updateSequence;
+    public long exchangeRevision;
+    public long feedbackAt;
+    public long lastEconomyTick = -20;
+    public long lastRejectionTick = -1;
+    private final Player owner;
     public final de.shiina.casino.logic.ActionGate actionGate = new de.shiina.casino.logic.ActionGate();
 
     public CasinoMenu(int id, Inventory inventory, RegistryFriendlyByteBuf buffer) {
         this(id, inventory, buffer.readUUID(), buffer.readBlockPos(), buffer.readUtf(16));
     }
     public CasinoMenu(int id, Inventory inventory, UUID table, BlockPos pos, String kind) {
-        super(CasinoContent.MENU.get(), id); this.table = table; this.pos = pos; this.kind = kind; this.dimension=inventory.player.level().dimension();
+        super(CasinoContent.MENU.get(), id); this.table = table; this.pos = pos; this.kind = kind; this.dimension=inventory.player.level().dimension(); this.owner=inventory.player;
     }
     @Override public ItemStack quickMoveStack(Player player, int slot) { return ItemStack.EMPTY; }
+    @Override public void broadcastChanges() {
+        super.broadcastChanges();
+        if (owner instanceof ServerPlayer player && player.server.getTickCount() - lastEconomyTick >= 20) {
+            lastEconomyTick = player.server.getTickCount();
+            CasinoServer.get(player.server).syncMenu(player);
+        }
+    }
     @Override public boolean stillValid(Player player) {
         return player.level().isClientSide || (player.isAlive() && player.level().dimension().equals(dimension) && player.level().hasChunkAt(pos) && player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) <= 64
                 && player.level().getBlockState(pos).getBlock() instanceof CasinoBlock block && block.kind.equals(kind));

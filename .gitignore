@@ -43,6 +43,7 @@ repo/
 
 ### Local development runs and artifacts ###
 run-render-check/
+run-menu-check/
 logs/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar

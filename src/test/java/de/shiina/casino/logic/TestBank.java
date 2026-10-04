@@ -10,9 +10,11 @@ final class TestBank implements Game.Bank {
     final Map<UUID, Long> debits = new HashMap<>();
     final Map<UUID, Long> maximumHeld = new HashMap<>();
     final Map<UUID,Integer> seats = new HashMap<>();
+    final PersonalRounds personal = new PersonalRounds();
+    final Map<UUID, java.util.List<PersonalRounds.Result>> completions = new HashMap<>();
     boolean allowed = true;
 
-    UUID player(long chips) { UUID id = UUID.randomUUID(); inventory.put(id, chips); return id; }
+    UUID player(long chips) { UUID id = UUID.randomUUID(); inventory.put(id, chips); personal.open(id); return id; }
     public boolean debit(UUID player, long amount) {
         long available = inventory.getOrDefault(player, 0L);
         if (available < amount) return false;
@@ -27,4 +29,11 @@ final class TestBank implements Game.Bank {
     public boolean available(UUID player) { return allowed; }
     public String name(UUID player) { return player.toString().substring(0, 6); }
     public int seat(UUID player) { return seats.getOrDefault(player,-1); }
+    public void completed(UUID player, PersonalRounds.Result result) {
+        completions.computeIfAbsent(player, ignored -> new java.util.ArrayList<>()).add(result);
+        personal.complete(player, result);
+    }
+    public void rememberBet(UUID player, String game, long amount) { personal.remember(player, game, amount); }
+    public void rememberWagers(UUID player, java.util.List<PersonalRounds.Wager> wagers) { personal.rememberWagers(player, wagers); }
+    public java.util.List<PersonalRounds.Wager> lastWagers(UUID player) { return personal.lastWagers(player); }
 }

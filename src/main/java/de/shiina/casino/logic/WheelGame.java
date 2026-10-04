@@ -18,11 +18,15 @@ public final class WheelGame extends Game {
     @Override public List<UUID> players() { return funded()?List.of(spin.owner):List.of(); }
     @Override public void nextRules(Rules next) { if(!funded()) rules=next; }
     @Override public void action(UUID player,String action,long amount,int option,long now) {
-        require(rules.fortune() && action.equals("spin") && !funded());
-        rules.bet(amount,false); debit(player,amount);
+        require(rules.fortune(), "casino.error.disabled");
+        require(action.equals("spin"));
+        require(!funded(), "casino.error.unavailable");
+        rules.bet(amount,false);
         List<Integer> segments=Rules.WHEEL_SEGMENTS;
         int result=random.nextInt(segments.size());
         long payout=Money.multiply(amount,segments.get(result));
+        debit(player,amount);
+        bank.rememberBet(player,kind(),amount);
         UUID transaction=UUID.randomUUID();
         bank.hold(transaction,kind()+":segment="+result,round+1,Map.of(player,payout));
         spin=new Spin(player,transaction,amount,result,payout,now,segments,false);
@@ -34,11 +38,16 @@ public final class WheelGame extends Game {
             bank.settle(spin.transaction);
             spin=new Spin(spin.owner,spin.transaction,spin.bet,spin.segment,spin.payout,spin.started,spin.segments,true);
             phase="result"; deadline=now+10000;
+            recordResult();
         } else { spin=null; phase="betting"; deadline=0; }
         changedAt=now; revision++;
     }
     @Override public void depart(UUID player,long now) {}
-    @Override public void close() { if(funded()) bank.settle(spin.transaction); spin=null; deadline=0; }
+    private void recordResult() { bank.completed(spin.owner,new PersonalRounds.Result(kind(),spin.transaction,round,spin.bet,spin.payout)); }
+    @Override public void close() {
+        if(funded()) { bank.settle(spin.transaction); recordResult(); }
+        spin=null; deadline=0;
+    }
     @Override public View view(UUID viewer,long now) {
         return new View(kind(),phase,round,revision,0,spin==null?0:spin.started,deadline,changedAt,
                 List.of(),List.of(),List.of(),spin==null?0:spin.bet,-1,spin==null?-1:spin.segment,

@@ -117,7 +117,7 @@ write(ASSETS/"models/block/fortune_wheel.json",model([element([3,0,3],[13,4,13])
 item=model([element([3,0,3],[13,4,13]),element([6,4,6],[10,16,10]),element([1,10,7],[15,24,9],"top")],"wheel")
 write(ASSETS/"models/block/fortune_wheel_item.json",item)
 write(ASSETS/"models/item/fortune_wheel.json",{"parent":"shiinacasino:block/fortune_wheel_item"})
-p=ROOT/"data/minecraft/tags/block/mineable/axe.json";tag=json.loads(p.read_text())
+p=ROOT/"data/minecraft/tags/block/mineable/axe.json";tag=json.loads(p.read_text(encoding="utf-8"))
 for name in ("blackjack_table_part","poker_table_part","roulette_table_part","fortune_wheel_part"):
     if "shiinacasino:"+name not in tag["values"]: tag["values"].append("shiinacasino:"+name)
 write(p,tag)

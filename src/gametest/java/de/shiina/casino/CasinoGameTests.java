@@ -140,15 +140,48 @@ public final class CasinoGameTests {
         player.getInventory().clearContent();player.getInventory().setItem(0,new ItemStack(Items.DIAMOND,4));
         var manager=CasinoServer.get(helper.getLevel().getServer());manager.open(player,anchor,"exchange");
         var menu=(de.shiina.casino.menu.CasinoMenu)player.containerMenu;
-        manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,UUID.randomUUID(),0,0,1,"buy",0,0));
+        manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,UUID.randomUUID(),0,0,1,"buy",1,CasinoConfig.RATE.get()));
         helper.assertTrue(player.getInventory().getItem(0).getCount()==4,"Wrong station must not debit");
         player.setPos(anchor.getX()+20,anchor.getY(),anchor.getZ());
-        manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,1,"buy",0,0));
+        manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,1,"buy",1,CasinoConfig.RATE.get()));
         helper.assertTrue(player.getInventory().getItem(0).getCount()==4,"Far action must not debit");
         player.setPos(anchor.getX()+.5,anchor.getY(),anchor.getZ()+1);
-        var packet=new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,1,"buy",0,0);
+        var packet=new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,1,"buy",1,CasinoConfig.RATE.get());
         manager.action(player,packet);manager.action(player,packet);
         helper.assertTrue(player.getInventory().getItem(0).getCount()==3,"Duplicate sequence must debit exactly once");
+        helper.assertTrue(menu.error.equals("casino.status.exchange"),"Success must come from the accepted server action");
+        manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,2,"buy",1,CasinoConfig.RATE.get()));
+        helper.assertTrue(player.getInventory().getItem(0).getCount()==3,"Old exchange revision must not consume items");
+        helper.assertTrue(menu.error.equals("casino.error.stale") || menu.error.equals("casino.error.fast"),"Stale/limited action needs feedback");
+        helper.assertTrue(menu.chips==CasinoConfig.RATE.get(),"Displayed spendable chips match main inventory");
         player.closeContainer();helper.succeed();
+    }
+
+    @GameTest(template="empty",timeoutTicks=80)
+    public static void bulkExchangeValidatesRateRevisionAndInventoryBeforeConsuming(GameTestHelper helper) {
+        BlockPos anchor=helper.absolutePos(new BlockPos(2,1,2));
+        helper.setBlock(new BlockPos(2,1,2),CasinoContent.TABLE_BLOCKS.get("exchange").get());
+        var player=interactivePlayer(helper,"CasinoBulk");player.setPos(anchor.getX()+.5,anchor.getY(),anchor.getZ()+1);
+        for(int slot=0;slot<36;slot++) player.getInventory().setItem(slot,new ItemStack(Items.COBBLESTONE,64));
+        player.getInventory().setItem(0,new ItemStack(Items.DIAMOND,3));
+        var manager=CasinoServer.get(helper.getLevel().getServer());manager.open(player,anchor,"exchange");
+        var menu=(de.shiina.casino.menu.CasinoMenu)player.containerMenu;int rate=CasinoConfig.RATE.get();
+        manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,1,"buy",1,rate));
+        helper.assertTrue(menu.error.equals("casino.error.inventory"),"Full inventory must explain rejection");
+        helper.assertTrue(ChipInventory.count(player,Items.DIAMOND)==3 && menu.exchangeRevision==0,"Rejection must not mutate items or revision");
+        helper.runAfterDelay(2,()->{
+            player.getInventory().clearContent();player.getInventory().setItem(0,new ItemStack(Items.DIAMOND,3));
+            manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,2,"buy",2,rate+1));
+            helper.assertTrue(menu.error.equals("casino.error.stale") && ChipInventory.count(player,Items.DIAMOND)==3,"Changed quoted rate must reject without consumption");
+            manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,3,"buy",2,rate));
+            helper.assertTrue(ChipInventory.count(player,Items.DIAMOND)==1 && ChipInventory.count(player,CasinoContent.CHIP.get())==2L*rate,"Bulk buy must use exact existing rate");
+            helper.runAfterDelay(2,()->{
+                manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,0,4,"buy",1,rate));
+                helper.assertTrue(menu.error.equals("casino.error.stale") && ChipInventory.count(player,Items.DIAMOND)==1,"New sequence with old revision must not buy twice");
+                manager.action(player,new de.shiina.casino.network.CasinoNetwork.Action(menu.containerId,menu.table,0,1,5,"sell",2,rate));
+                helper.assertTrue(ChipInventory.count(player,Items.DIAMOND)==3 && ChipInventory.count(player,CasinoContent.CHIP.get())==0,"Bulk sell must conserve the original diamonds");
+                player.closeContainer();helper.succeed();
+            });
+        });
     }
 }

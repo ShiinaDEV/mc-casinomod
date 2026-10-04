@@ -79,6 +79,13 @@ neoForge {
             programArguments.addAll '--width', '1280', '--height', '720'
         }
 
+        clientMenuTest {
+            client()
+            gameDirectory = project.file('run-menu-check')
+            systemProperty 'shiinacasino.menuTest', 'true'
+            programArguments.addAll '--width', '1280', '--height', '720'
+        }
+
         server {
             server()
             programArgument '--nogui'
@@ -219,6 +226,7 @@ tasks.withType(ProcessResources).configureEach {
 tasks.named('test', Test) {
     useJUnitPlatform()
     maxHeapSize = '256m'
+    systemProperty 'file.encoding', 'UTF-8'
 }
 
 java.withSourcesJar()

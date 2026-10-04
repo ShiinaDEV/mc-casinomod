@@ -8,6 +8,13 @@ import java.util.Map;
 public final class SnapshotDelta {
     private SnapshotDelta() {}
 
+    /** Check transport ordering BEFORE applying array deltas to a newer/smaller base. */
+    public static JsonObject receive(JsonObject previous, JsonObject update, boolean full, long sequence) {
+        if (!update.has("updateSequence") || update.get("updateSequence").getAsLong() <= sequence) return null;
+        if (!full && previous == null) return null;
+        return full ? update : apply(previous, update);
+    }
+
     public static JsonObject between(JsonObject previous, JsonObject next) {
         JsonObject patch = new JsonObject();
         for (Map.Entry<String, JsonElement> field : next.entrySet()) {

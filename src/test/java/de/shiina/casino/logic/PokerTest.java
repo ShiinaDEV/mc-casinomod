@@ -198,6 +198,11 @@ class PokerTest {
                 assertEquals(total,game.totalChips());
             }
             assertTrue(steps < 150); assertEquals("result",game.view(UUID.randomUUID(),0).phase());
+            assertEquals(count,bank.completions.size());
+            assertTrue(bank.completions.values().stream().allMatch(results->results.size()==1));
+            var results=bank.completions.values().stream().map(List::getFirst).toList();
+            assertEquals(game.view(UUID.randomUUID(),0).pot(),results.stream().mapToLong(PersonalRounds.Result::stake).sum());
+            assertEquals(0,results.stream().mapToLong(PersonalRounds.Result::net).sum());
             game.close(); assertEquals(total,bank.ledger.balances().values().stream().mapToLong(Long::longValue).sum());
             assertTrue(bank.ledger.pending().isEmpty());
         }

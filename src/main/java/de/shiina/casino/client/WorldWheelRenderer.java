@@ -31,7 +31,7 @@ public final class WorldWheelRenderer implements BlockEntityRenderer<WheelBlockE
         boolean roulette=block.kind.equals("roulette"), expanded=wheel.getBlockState().getValue(CasinoBlock.EXPANDED);
         int count=roulette?37:12, segment=wheel.result;
         if(roulette && segment>=0) for(int i=0;i<37;i++) if(Roulette.ORDER[i]==segment) { segment=i;break; }
-        double angle=WheelAnimation.angle(segment,count,wheel.getLevel().getGameTime()+partial-wheel.startedTick,wheel.spinning?wheel.duration:0);
+        double angle=WheelAnimation.angle(segment,count,wheel.getLevel().getGameTime()+partial-wheel.startedTick,wheel.spinning && !CasinoClientConfig.REDUCED.get()?wheel.duration:0);
         pose.pushPose(); pose.translate(.5,0,.5);
         pose.mulPose(Axis.YP.rotationDegrees(-wheel.getBlockState().getValue(CasinoBlock.FACING).toYRot()+180));
         if(roulette && expanded) board(pose,buffers,light);
@@ -48,6 +48,7 @@ public final class WorldWheelRenderer implements BlockEntityRenderer<WheelBlockE
         for(int sector=0;sector<count;sector++) {
             int number=roulette?Roulette.ORDER[sector]:0;
             int color=roulette?(number==0?0xff2b8754:Roulette.red(number)?0xffae293e:0xff1e2330):colors[sector%6];
+            if (!wheel.spinning && wheel.result >= 0 && sector == segment) color = 0xffa48132;
             for(int part=0;part<subdivisions;part++) {
                 double a=(sector+part/(double)subdivisions)*Math.PI*2/count,b=(sector+(part+1)/(double)subdivisions)*Math.PI*2/count;
                 float[] va={(float)(Math.cos(a)*radius),(float)(Math.sin(a)*radius)},vb={(float)(Math.cos(b)*radius),(float)(Math.sin(b)*radius)};
@@ -66,7 +67,7 @@ public final class WorldWheelRenderer implements BlockEntityRenderer<WheelBlockE
                 if(front) pose.mulPose(Axis.YP.rotationDegrees(180));
                 pose.scale(.025F,-.025F,.025F);
                 String label=Rules.WHEEL_SEGMENTS.get(sector)+"\u00d7";
-                font.drawInBatch(label,-font.width(label)/2F,-4,0xfff7ecd1,false,pose.last().pose(),buffers,Font.DisplayMode.NORMAL,0,light);
+                font.drawInBatch(label,-font.width(label)/2F,-4,!wheel.spinning && sector==segment?0xff101710:0xfff7ecd1,false,pose.last().pose(),buffers,Font.DisplayMode.NORMAL,0,light);
                 pose.popPose();
             }
         }

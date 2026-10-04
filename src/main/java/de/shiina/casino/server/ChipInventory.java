@@ -20,6 +20,18 @@ public final class ChipInventory {
     };
     private ChipInventory() {}
 
+    public static long count(ServerPlayer player, Item item) {
+        long result = 0;
+        for (int slot = 0; slot < 36; slot++) if (player.getInventory().getItem(slot).is(item)) result += player.getInventory().getItem(slot).getCount();
+        return result;
+    }
+    public static long maximumExchange(ServerPlayer player, Item input, long cost, Item output, long reward) {
+        return InventoryOps.maximumExchange(copy(player), ADAPTER, input, cost, output, reward);
+    }
+    public static long capacity(ServerPlayer player, Item item) {
+        return InventoryOps.insert(copy(player), ADAPTER, item, 2304).delivered();
+    }
+
     public static List<ItemStack> copy(ServerPlayer player) {
         List<ItemStack> slots = new ArrayList<>(36);
         for (int slot = 0; slot < 36; slot++) slots.add(player.getInventory().getItem(slot).copy());

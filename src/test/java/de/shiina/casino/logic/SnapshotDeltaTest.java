@@ -13,6 +13,22 @@ class SnapshotDeltaTest {
     private final Gson json = new Gson();
     private JsonObject object(String value) { return JsonParser.parseString(value).getAsJsonObject(); }
 
+    @Test void duplicateOrLateDeltaIsRejectedBeforeTouchingSmallerCurrentArrays() {
+        JsonObject current=object("{\"updateSequence\":4,\"seats\":[]}");
+        JsonObject late=object("{\"updateSequence\":3,\"seats\":{\"$size\":6,\"$entries\":{\"0\":42}}}");
+        assertNull(SnapshotDelta.receive(current,late,false,4));
+        late.addProperty("updateSequence",4);assertNull(SnapshotDelta.receive(current,late,false,4));
+        assertEquals(object("{\"updateSequence\":4,\"seats\":[]}"),current);
+        assertNull(SnapshotDelta.receive(current,object("{\"updateSequence\":3,\"seats\":[1]}"),true,4));
+    }
+    @Test void newSnapshotsAndDeltasAcceptHistoryAndRequireAnInitialFullState() {
+        JsonObject first=object("{\"updateSequence\":1,\"history\":[]}");
+        assertNull(SnapshotDelta.receive(null,first,false,0));
+        assertEquals(first,SnapshotDelta.receive(null,first,true,0));
+        JsonObject next=object("{\"updateSequence\":2,\"history\":[{\"stake\":20,\"payout\":40}]}");
+        assertEquals(next,SnapshotDelta.receive(first,SnapshotDelta.between(first,next),false,1));
+    }
+
     @Test void arrayInsertRemovalReplacementAndTruncationRoundTrip() {
         JsonObject state = object("{\"board\":[],\"seats\":[1,2,3],\"phase\":\"lobby\"}");
         for (String next : new String[]{"{\"board\":[1,2,3],\"seats\":[1,7,3],\"phase\":\"flop\"}",

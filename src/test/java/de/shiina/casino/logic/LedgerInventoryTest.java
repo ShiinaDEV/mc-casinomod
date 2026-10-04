@@ -40,6 +40,21 @@ class LedgerInventoryTest {
         assertEquals(2, inventory.getFirst().count);
         assertNull(InventoryOps.exchange(inventory, ADAPTER, CHIP, 100, DIAMOND, 1));
     }
+    @Test void maximumExchangeIncludesFreedInputSlotsAndMatchesPossibleTransactions() {
+        List<Stack> full=List.of(new Stack(DIAMOND,64,false),new Stack(STONE,64,false));
+        assertEquals(64,InventoryOps.maximumExchange(full,ADAPTER,DIAMOND,1,CHIP,1));
+        assertNull(InventoryOps.exchange(full,ADAPTER,DIAMOND,1,CHIP,1));
+        assertNotNull(InventoryOps.exchange(full,ADAPTER,DIAMOND,64,CHIP,64));
+        java.util.Random random=new java.util.Random(38721);
+        for(int i=0;i<500;i++) {
+            var slots=new java.util.ArrayList<Stack>();
+            for(int slot=0;slot<6;slot++) slots.add(new Stack(new Object[]{DIAMOND,CHIP,STONE,null}[random.nextInt(4)],random.nextInt(65),random.nextBoolean()));
+            int rate=1+random.nextInt(200);
+            long expected=0,available=slots.stream().filter(s->s.item==DIAMOND).mapToLong(Stack::count).sum();
+            for(int q=1;q<=available;q++) if(InventoryOps.exchange(slots,ADAPTER,DIAMOND,q,CHIP,(long)q*rate)!=null) expected=q;
+            assertEquals(expected,InventoryOps.maximumExchange(slots,ADAPTER,DIAMOND,1,CHIP,rate));
+        }
+    }
     @Test void identityAndComponentsAreNotNames() {
         List<Stack> inventory = List.of(new Stack(new Object(), 64, false), new Stack(CHIP, 63, true));
         assertNull(InventoryOps.remove(inventory, ADAPTER, CHIP, 64));
